@@ -1,0 +1,165 @@
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Text, Animated, Image } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Haversine formula to calculate the distance between two lat/lng points in kilometers
+const haversine = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Radius of Earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180); // Convert degrees to radians
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in kilometers
+};
+
+const MapComponent = () => {
+  const [carPosition] = useState(new Animated.Value(0)); // Animation Value
+  const [markerPosition, setMarkerPosition] = useState(null); // Starting marker position
+  const [route, setRoute] = useState([]); // Route coordinates
+  const [startCoord, setStartCoord] = useState(null); // Start location
+  const [totalDistance, setTotalDistance] = useState(0); // Total route distance in km
+  const [animationDuration, setAnimationDuration] = useState(0); // Animation duration based on distance
+
+  useEffect(() => {
+    // Fetch the route and start location from AsyncStorage
+    const loadRouteData = async () => {
+      try {
+        // Retrieve route data and start location from AsyncStorage
+        const routeData = await AsyncStorage.getItem('routeData');
+        const startLocation = await AsyncStorage.getItem('startLocation');
+        const endLocation = await AsyncStorage.getItem('endLocation');
+
+
+        console.log('Route Data:', routeData);
+        console.log('Start Location:', startLocation);
+        console.log('end Location:', endLocation);
+
+        
+
+        if (routeData && startLocation) {
+          // Parse the data and update state
+          const parsedRoute = JSON.parse(routeData);
+          setRoute(parsedRoute);
+          setStartCoord(JSON.parse(startLocation));
+
+          // Calculate total distance and animation duration based on a speed of 60 km/h
+          const distance = parsedRoute.reduce((acc, [lng, lat], index) => {
+            if (index === 0) return acc;
+            const [prevLng, prevLat] = parsedRoute[index - 1];
+            const dist = haversine(lat, lng, prevLat, prevLng);
+            return acc + dist;
+          }, 0);
+
+          // Assuming the car speed is 60 km/h, calculate the duration (in milliseconds) for the animation
+          const speed = 60; // Speed in km/h
+          const duration = (distance / speed) * 3600000; // Convert hours to milliseconds
+          setTotalDistance(distance);
+          setAnimationDuration(duration);
+        } else {
+          console.log('Some data is missing!');
+        }
+      } catch (error) {
+        console.error('Error fetching data from AsyncStorage:', error);
+      }
+    };
+
+    loadRouteData();
+  }, []); // Empty dependency array means this runs only once on component mount
+
+  useEffect(() => {
+    // If we have the route and start coordinates, animate the car
+    if (startCoord && route.length > 0 && animationDuration > 0) {
+      const polylineCoordinates = route.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
+
+      // Start the animation for the car moving along the polyline
+      Animated.timing(carPosition, {
+        toValue: 1, // Animate to 1 (End of the route)
+        duration: animationDuration, // Adjusted duration based on total distance
+        useNativeDriver: false, // Ensure that the animated value updates the state correctly
+      }).start();
+
+      // Update marker position based on the animation value
+      carPosition.addListener(({ value }) => {
+        const index = Math.floor(value * (polylineCoordinates.length - 1));
+        const nextIndex = Math.min(index + 1, polylineCoordinates.length - 1);
+
+        // Interpolate between the current and next polyline coordinates
+        const progress = (value * (polylineCoordinates.length - 1)) - index;
+        const lat = polylineCoordinates[index].latitude + progress * (polylineCoordinates[nextIndex].latitude - polylineCoordinates[index].latitude);
+        const lng = polylineCoordinates[index].longitude + progress * (polylineCoordinates[nextIndex].longitude - polylineCoordinates[index].longitude);
+
+        setMarkerPosition({ latitude: lat, longitude: lng });
+      });
+    }
+  }, [carPosition, startCoord, route, animationDuration]);
+
+  return (
+    <View style={styles.container}>
+      {startCoord && route.length > 0 ? (
+        <MapView
+          style={styles.map}
+          initialRegion={{
+            latitude: -startCoord.latitude,
+            longitude: startCoord.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta
+            : 0.0421,
+        
+          }}
+        >
+          {
+            
+            
+            
+            /
+            * 
+            Dr
+            aw the route (polyline) */}
+          {route.length > 0 && (
+            <Polyline
+              coordinates={route.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))}
+              strokeColor="green"
+              strokeWidth={3}
+            />
+          )}
+
+          {/* Custom Marker for the car */}
+          {markerPosition && (
+            <Marker coordinate={markerPosition}>
+              {/* Custom Car Image */}
+              <Image
+                source={require('@/assets/images/truck1.png')} // Replace with your car icon path
+                style={{ width: 40, height: 40 }} // Customize the size of your marker
+              ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------/>
+            </Marker>
+          )}
+        </MapView>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <Text>Loading 7/4gfvgg3wmap...</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  map: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
+
+export default MapComponent;

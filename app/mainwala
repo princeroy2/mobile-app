@@ -1,0 +1,7 @@
+ {"__v": 0, "_id": "67e0533c8f1e54ac3b8f645a",
+  "createdAt": "2025-03-23T18:30:20.646Z",
+   "description": "Distance: 30.892212151342633 km", "endDate": "2025-03-23T18:30:22.890Z",
+    "id": "67e0533c8f1e54ac3b8f645a", "isPaid": false, "price": "15446", 
+    "startDate": "2025-03-23T18:30:22.890Z", "status": "pending", "title": "Trip to",
+     "totalDistance": "30.892212151342633", 
+ "updatedAt": "2025-03-23T18:30:20.646Z", "userId": "67e04b6f8f1e54ac3b8f63ed"}
