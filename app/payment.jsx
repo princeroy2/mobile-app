@@ -7,97 +7,69 @@ const PaymentScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { userId, distance, price, fuel, status } = route.params || {};
+  console.log(price)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Handle function for sending data to API
   const handlePayment = async () => {
     if (userId && distance && price && status && fuel) {
-      console.log(price)
-      const sendDataToApi = async () => {
-        setLoading(true);
-        setError(null);
-        const today = new Date();
-        const startDate = today.toISOString();
-        const endDate = today.toISOString();
+      try {
+        setLoading(true); // Set loading state to true when starting the process
 
-        try {
-          const accessToken = await AsyncStorage.getItem('accessToken');
-          const startLocation = await AsyncStorage.getItem('startLocation');
-          const endLocation = await AsyncStorage.getItem('EndLocation');
-          
-          // If the location data is stored as a JSON string, we need to parse it
-          const startLocationObj = JSON.parse(startLocation);
-          const endLocationObj = JSON.parse(endLocation);
-          
-          // Extract latitude and longitude
-          const startLatitude = startLocationObj ? startLocationObj.latitude : null;
-          const startLongitude = startLocationObj ? startLocationObj.longitude : null;
+        // Save data to AsyncStorage
+        await AsyncStorage.setItem('userId', userId);
+        await AsyncStorage.setItem('distance', distance.toString());
+        await AsyncStorage.setItem('price', price.toString());
+        await AsyncStorage.setItem('status', status);
+        await AsyncStorage.setItem('fuel', fuel.toString());
+        console.log('peeeeeeeeeeeeeeeeee',userId,distance,price)
 
-          const endLatitude = endLocationObj ? endLocationObj.latitude : null;
-          const endLongitude = endLocationObj ? endLocationObj.longitude : null;
-          console.log('endLocation',endLatitude)
-          
-          console.log(`Start Location - Latitude: ${startLatitude}, Longitude: ${startLongitude}`);
-          console.log(`endLatitude Location - Latitude: ${endLatitude}, Longitude: ${endLongitude}`);
-          
-          
-          if (!accessToken) {
-            throw new Error('Access token not found.');
-          }
+        // Example: You can replace this with your API call
+        // const response = await fetch('YOUR_API_ENDPOINT', {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //   },
+        //   body: JSON.stringify({
+        //     userId,
+        //     distance,
+        //     price,
+        //     fuel,
+        //     status,
+        //   }),
+        // });
 
-          const response = await fetch('http://192.168.0.114:1234/booking', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              userId,
-              totalDistance: String(distance),
-              fuelConsumption: String(fuel),
-              startDate,
-              endDate,
-    
-              title: 'Trip to',
-              description: `Distance: ${distance} km`,
-              price:String(price),
-              startLocation:{
-                coordinates:[
-                  startLongitude,
-                  startLatitude
-                ]
-              },
-              endLocation:{
-                coordinates:[
-                  endLongitude,
-                  endLatitude
-                ]
-              }
-            }),
-          });
+        // Handle API response
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   // If successful, navigate or show success message
+        //   navigation.navigate('PaymentSuccess');  // Example navigation
+        // } else {
+        //   throw new Error('Payment failed');
+        // }
 
-          if (response.ok) {
-            const data = await response.json();
-            console.log('API response:', data);
-            await AsyncStorage.setItem('bookingId',data._id);
-            await AsyncStorage.setItem('booking','done');
-            // Navigate to next screen if payment is confirmed
-            navigation.navigate('stripe', { price });
-          } else {
-            const errorText = await response.text();
-            throw new Error(`API Error: ${errorText}`);
-          }
+        // After processing, stop loading
+        setLoading(false);
+        // Optionally, you can navigate to a success screen after the payment is completed
+        // Reset the stack and navigate to the 'stripe' screen
+navigation.reset({
+  index: 0,  // Reset the stack to have only one screen.
+  routes: [
+    { 
+      name: 'stripe', 
+      params: { userId, distance, price, fuel, status } // Pass parameters
+    }
+  ]
+});
+
         } catch (error) {
-          setError(error.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      sendDataToApi();
+        setLoading(false); // Stop loading
+        setError('Error processing payment');
+        console.error('Payment error:', error);
+      }
     } else {
-      setError('Missing data to send to API.');
+      setError('Missing required data');
     }
   };
 

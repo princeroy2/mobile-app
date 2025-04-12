@@ -21,6 +21,7 @@ const FullScreenMap = () => {
   const [price, setPrice] = useState(null);
   const [vehicaldata, setVehicalData] = useState(null);
   const [allvehicaldata, setAllVehicalData] = useState();
+  const [samevehicaldata, setSamevehicaldata] = useState();
   const [fuel, setFuel] = useState(null);
   const [timerr, setTime] = useState(null);
   const [route, setRoute] = useState([]);
@@ -28,8 +29,9 @@ const FullScreenMap = () => {
 
   const API_KEY = '02b59fca7af64458bfde7c7772d72845'; 
   const OPENROUTESERVICE_API_KEY = '5b3ce3597851110001cf6248b443068b80c24b18ba00bec208b8cdeb'; 
-  const { truckId } = routerrdata.params || {};
-// console.log('truckiddddd',truckId)
+  const { truckId ,vehicletitle} = routerrdata.params || {};
+
+// console.log('truckiddddd',vehicletitle)
   const prevRegionRef = useRef();
   const navigation = useNavigation(); 
 
@@ -124,54 +126,6 @@ const FullScreenMap = () => {
     }
   };
 
-  // useEffect(() => {
-  
-  //   // // Function to fetch vehicle data based on truckId
-  //   async function fetchTruckData() {
-  //     if (!truckId) {
-  //       try {
-  //         // Example API call to fetch vehicle data
-  //         const response = await fetch(`http://192.168.0.114:1234/vehicle`, {
-  //           method: 'GET',
-  //         });
-  //         const data = await response.json();
-  //         console.log('dataaaaaaaaaaaaaaaaaaaa',data);
-  //         setallVehicaldata(data)
-  
-  //         if (!response.ok) {
-  //           setError('Failed to fetch vehicle data');
-  //         }
-  //       } catch (err) {
-  //         console.error(err);
-  //         setError('Error fetching vehicle data');
-  //       }
-  //     };
-
-  //     try {
-  //       // Example API call to fetch vehicle data
-  //       const response = await fetch(`http://192.168.0.114:1234/vehicle/specific/${truckId}`, {
-  //         method: 'GET',
-  //       });
-  //       const data = await response.json();
-  //       console.log('dataaaaaaaaaaaaaaaaaaaa',data.currentLocation);
-  //       setVehicaldata(data)
-
-  //       if (!response.ok) {
-  //         setError('Failed to fetch vehicle data');
-  //       }
-  //     } catch (err) {
-  //       console.error(err);
-  //       setError('Error fetching vehicle data');
-  //     }
-  //   }
-
-  //   // Fetch the truck data and location on mount
-  //   fetchTruckData();
-  //   getCurrentLocation();
-
-  // }, []);  // Depend on truckId to re-fetch data when it changes
-
-
   const fetchTruckData = async () => {
     setLoading(true);
     try {
@@ -187,14 +141,20 @@ const FullScreenMap = () => {
 
       } else {
         // Fetch specific vehicle data if truckId is provided
-        const response = await fetch(`http://192.168.0.114:1234/vehicle/specific/${truckId}`);
+        const response = await fetch('http://192.168.0.114:1234/vehicle');
+  
         if (!response.ok) {
           throw new Error('Failed to fetch vehicle data');
         }
+      
         const data = await response.json();
-          console.log('dataaaaaaaaaaaaaaaaa',data)
+        console.log(data)
+      const vehiclesWithTitleBoung = data.data.filter(vehicle => vehicle.title === vehicletitle);
 
-        setVehicalData(data);
+  // Set the filtered data to display only vehicles with the title 'boung'
+  setSamevehicaldata(vehiclesWithTitleBoung);
+  console.log('Fetched vehicle data:', vehiclesWithTitleBoung);
+
         // console.log('dataaaaaaaaaaaaaaaaa',vehicaldata.currentLocation.coordinates[0])
 
       }
@@ -304,7 +264,7 @@ const FullScreenMap = () => {
             title={selectedLocation.title}
           />
         )}
-
+{/* 
 {vehicaldata && (
           <Marker
             coordinate={{
@@ -319,9 +279,24 @@ const FullScreenMap = () => {
                             style={{ width: 40, height: 40 }} // Customize the size of your marker
                           />
             </Marker>
-        )}
+        )} */}
 
-{/* for all vihical  */}
+{samevehicaldata && samevehicaldata.map((vehicle, index) => (
+        <Marker
+          key={index}
+          coordinate={{
+            latitude: vehicle.currentLocation.coordinates[0], // Assuming currentLocation has [latitude, longitude]
+            longitude: vehicle.currentLocation.coordinates[1],
+          }}
+          title={vehicle.title}
+        >
+          <Image
+            source={{ uri: `http://192.168.0.114:1234/uploads/${vehicle.image[0]}` }} // Assuming vehicle.image is an array
+            style={{ width: 40, height: 40 }} // Customize the size of your marker
+          />
+        </Marker>
+      ))}
+
 
 {allvehicaldata && allvehicaldata.map((vehicle, index) => (
         <Marker

@@ -1,17 +1,27 @@
 import React, { useState } from 'react';
-import { View, Text, Button, TouchableOpacity, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, ActivityIndicator, StyleSheet } from 'react-native';
 import { CardField, useConfirmPayment } from '@stripe/stripe-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
 function CheckoutScreen() {
   const route = useRoute();
+  const { userId, distance, price, fuel, status } = route.params || {};
+
+    const priceInt = Number(price);
   const navigation = useNavigation();
-  const { price } = route.params || {};
-  const priceInt = Number(price);
   const [loading, setLoading] = useState(false);
+  const [userid, setuseid] = useState(userId);
+  const [error, setError] = useState();
+  const [distancee, setdistance] = useState(distance);
+  const [pricee, setprice] = useState(price);
+  const [fuell, setfuel] = useState(fuel);
+  const [statuss, setstatus] = useState(status);
 
   // Fetch client secret from the backend
   const fetchPaymentIntentClientSecret = async () => {
+  
+
     const apiEndpoint =
       Platform.OS === 'ios' ? 'http://localhost:4242' : 'http://10.0.2.2:4567';
 
@@ -22,6 +32,7 @@ function CheckoutScreen() {
       },
       body: JSON.stringify({ amount: priceInt }),
     });
+
     const { clientSecret } = await response.json();
     return clientSecret;
   };
@@ -30,9 +41,15 @@ function CheckoutScreen() {
 
   const handlePayPress = async () => {
     setLoading(true);
-    const billingDetails = {
-      email: 'jenny.rosen@example.com',
-    };
+    const email = await AsyncStorage.getItem('email');
+    console.log(email)
+    if (!email) {
+      setLoading(false);
+      setError('Email not found');
+      return;
+    }
+
+    const billingDetails = { email };
 
     // Fetch the intent client secret from the backend
     const clientSecret = await fetchPaymentIntentClientSecret();
@@ -45,11 +62,95 @@ function CheckoutScreen() {
 
     if (error) {
       console.log('Payment confirmation error', error);
+      setError('Payment failed. Please try again.');
       setLoading(false);
     } else if (paymentIntent) {
       console.log('Success from promise', paymentIntent);
+      await handleBooking();
+
       setLoading(false);
-      navigation.navigate('waiting'); // Navigate to the waiting screen on success
+    }
+  };
+
+  // Handle booking data submission
+  const handleBooking = async () => {
+    console.log('Booking Data:', userid, distancee, pricee, statuss, fuell);
+    const u = await AsyncStorage.getItem('userId');
+    console.log(u)
+
+    if (userid && distancee && pricee && statuss && fuell) {
+      console.log(userid,distancee,pricee)
+      setLoading(true);
+      setError(null);
+      const today = new Date();
+      const startDate = today.toISOString();
+      const endDate = today.toISOString();
+
+      try {
+        const accessToken = await AsyncStorage.getItem('accessToken');
+        const startLocation = await AsyncStorage.getItem('startLocation');
+        const endLocation = await AsyncStorage.getItem('endLocation');
+
+        if (!accessToken) {
+          throw new Error('Access token not found');
+        }
+
+        const startLocationObj = JSON.parse(startLocation);
+        const endLocationObj = JSON.parse(endLocation);
+
+        const startLatitude = startLocationObj?.latitude;
+        const startLongitude = startLocationObj?.longitude;
+
+        const endLatitude = endLocationObj?.latitude;
+        const endLongitude = endLocationObj?.longitude;
+        console.log(endLatitude)
+        const isPaid='false'
+        const response = await fetch('http://192.168.0.114:1234/booking', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            userId:userid,
+            // isPaid,
+            status: 'confirmed',
+            totalDistance: String(distancee),
+            fuelConsumption: String(fuell),
+            startDate,
+            endDate,
+            title: 'Trip to',
+            description: `Distance: ${distancee} km`,
+            price: String(pricee),
+            startLocation: {
+              coordinates: [startLongitude, startLatitude],
+            },
+            endLocation: {
+              coordinates: [endLongitude, endLatitude],
+            },
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          await AsyncStorage.setItem('bookingId', data._id);
+          await AsyncStorage.setItem('booking', 'start');
+// Navigate to 'waiting' screen and reset the navigation stack
+navigation.reset({
+  index: 0,  // Reset the stack to have only one screen.
+  routes: [{ name: 'waiting' }],  // Navigate to 'waiting' screen
+});
+        } else {
+          const errorText = await response.text();
+          throw new Error(`API Error: ${errorText}`);
+        }
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setError('Missing data to send to API');
     }
   };
 
@@ -92,8 +193,8 @@ function CheckoutScreen() {
         )}
       </TouchableOpacity>
 
-      {/* Loading Indicator and Error */}
-      {/* {loading && <ActivityIndicator size="large" color="#2C9C96" style={styles.loader} />} */}
+      {/* Error Handling */}
+      {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 }
@@ -158,8 +259,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  loader: {
-    marginTop: 20,
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+    marginTop: 10,
   },
 });
 

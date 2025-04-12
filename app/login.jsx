@@ -45,25 +45,28 @@ const Index = () => {
 
         const result = await response.json();
 
-
         if (response.ok) {
           if (result.statuscode !== 400) {
-            // Store the accessToken in AsyncStorage after successful login
-            try {
-              await AsyncStorage.setItem('accessToken', result.accessToken);
-              await AsyncStorage.setItem('login', 'true'); 
-              await AsyncStorage.setItem('id', result.user.id); 
-              
-              // console.log(result)
-             
-              console.log('Token saved');
-            } catch (error) {
-              console.error('Error saving token:', error);
+            // Check if the user role is 'USER'
+            if (result.user && result.user.role === 'USER') {
+              // Store the accessToken in AsyncStorage after successful login
+              try {
+                await AsyncStorage.setItem('accessToken', result.accessToken);
+                await AsyncStorage.setItem('login', 'true');
+                await AsyncStorage.setItem('id', result.user.id);
+                await AsyncStorage.setItem('email', result.user.email);
+                await AsyncStorage.setItem('name', result.user.name);
+                console.log('Token saved');
+
+                // Navigate to the tabs screen after successful login
+                router.replace('/(tabs)');
+              } catch (error) {
+                console.error('Error saving token:', error);
+              }
+            } else {
+              // User is not authorized
+              setBackendError('You are not authorized');
             }
-         
- 
-            // Navigate to the tabs screen after successful login
-            router.replace('/(tabs)');
           } else {
             setBackendError(result.message);
           }
@@ -72,7 +75,7 @@ const Index = () => {
         }
       } catch (error) {
         setBackendError('Network error: ' + error.message);
-        console.log(error.message)
+        console.log(error.message);
       }
     }
   };

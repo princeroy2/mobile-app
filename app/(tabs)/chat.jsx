@@ -1,21 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
-import SelectDropdown from 'react-native-select-dropdown'; // Import SelectDropdown
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Import MaterialCommunityIcons
+import SelectDropdown from 'react-native-select-dropdown';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ComplainPage = () => {
-  const [selectedIssue, setSelectedIssue] = useState(null); // State for selected issue
-  const [description, setDescription] = useState(''); // State for description
+  const [selectedIssue, setSelectedIssue] = useState(null);  // State for selected issue
+  const [description, setDescription] = useState('');  // State for description
+  const [userId, setUserId] = useState(''); // State for user ID
+
+  useEffect(() => {
+    // Retrieve userId from AsyncStorage (or other methods)
+    const getUserId = async () => {
+      const id = await AsyncStorage.getItem('userId');
+      setUserId(id);
+    };
+    getUserId();
+  }, []);
 
   // Handle form submission
-  const handleSubmit = () => {
-    console.log('Issue:', selectedIssue ? selectedIssue : '');
-    console.log('Description:', description);
-    // Reset form after submission
-    setSelectedIssue(null);
-    setDescription('');
+  const handleSubmit = async () => {
+    if (!selectedIssue || !description) {
+      alert('Please fill in all fields.');
+      return;
+    }
+  
+    // Prepare the data to send in the request
+    const complaintData = {
+      description: description,
+      reasons: [selectedIssue.title], // The reason can be the title of the selected issue
+      userId: userId,  // User ID
+    };
+  
+    try {
+      // Retrieve the Bearer token from AsyncStorage (or wherever it's stored)
+      const token = await AsyncStorage.getItem('accessToken');  // Adjust the key if necessary
+  
+      if (!token) {
+        alert('No authorization token found.');
+        return;
+      }
+  
+      const response = await fetch('http://192.168.0.114:1234/Complaint', {  // Replace with your API URL
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,  // Add Bearer token here
+        },
+        body: JSON.stringify(complaintData),
+      });
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        alert('Complaint submitted successfully');
+        setSelectedIssue(null);
+        setDescription('');
+      } else {
+        alert('Error submitting complaint: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error submitting complaint:', error);
+      alert('An error occurred. Please try again later.');
+    }
   };
-
+  
   const emojisWithIcons = [
     { title: 'Verification Problem', icon: 'emoticon-sad-outline' },
     { title: 'Client Problem', icon: 'emoticon-angry-outline' },
@@ -26,7 +75,6 @@ const ComplainPage = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        {/* Heading */}
         <Text style={styles.heading}>If you have any complaint, feel free to talk and send your query here.</Text>
 
         {/* Issue Selection Dropdown */}
@@ -88,14 +136,11 @@ const ComplainPage = () => {
   );
 };
 
-export default ComplainPage;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F8FF',
     padding: 20,
-    
   },
   heading: {
     fontSize: 20,
@@ -103,7 +148,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 30,
     color: '#19104E',
-    marginTop:30
+    marginTop: 30
   },
   formGroup: {
     marginBottom: 20,
@@ -195,3 +240,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+export default ComplainPage;

@@ -215,7 +215,7 @@
 // });
 
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, Image, SafeAreaView, Text, View, Dimensions, TouchableOpacity } from 'react-native';
+import { StyleSheet, ScrollView, Image,Alert, SafeAreaView, Text, View, Dimensions, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar'; // Import StatusBar from expo-status-bar
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -223,7 +223,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FullScreenMap1 from '@/app/main1';  // FullScreenMap for the map
 
-const { width, height } = Dimensions.get('window'); // Get screen width and height
+const { width, height } = Dimensions.get('window'); 
 
 const IndexTab = () => {
     const navigation = useNavigation();
@@ -272,9 +272,23 @@ const IndexTab = () => {
           method: 'GET',
         });
         const data = await response.json();
-        // console.log(data.data)
+      
+        // Check if the response is ok
         if (response.ok) {
-          setVehicleData(data.data); // Assuming the response has 'vehicles' field
+          // Use a Set to track unique vehicle names
+          const uniqueVehicles = [];
+          const vehicleNames = new Set();
+      
+          // Filter out vehicles with duplicate names
+          data.data.forEach(vehicle => {
+            if (!vehicleNames.has(vehicle.title)) {
+              vehicleNames.add(vehicle.title);
+              uniqueVehicles.push(vehicle);
+            }
+          });
+      
+          // Set the filtered (unique) vehicles data to state
+          setVehicleData(uniqueVehicles);
         } else {
           setError('Failed to fetch vehicle data');
         }
@@ -282,19 +296,45 @@ const IndexTab = () => {
         console.error(err);
         setError('Error fetching vehicle data');
       }
+      
     };
 
     fetchVehicleData()
     fetchUserData();
-  }, []);
+  }, [userData]);
 
-  const selectTruck = async (truckId) => {
+  const selectTruck = async (truckId,vehicletitle) => {
         console.log(truckId)
       // Save the selected truck ID to AsyncStorage
       // await AsyncStorage.setItem('Truckid', truckId);
-      navigation.navigate('main', { truckId });
+      navigation.navigate('main', { truckId,vehicletitle });
 
    
+  };
+
+
+  const handleBooking = async () => {
+    const booking = await AsyncStorage.getItem('booking');
+
+    if (booking==='start') {
+      // Show an alert or prevent the navigation
+      Alert.alert('Booking already started', 'You cannot book again at the moment.');
+    } else {
+      // Proceed to the booking screen
+      router.push('/booking');
+    }
+  };
+
+  const handleBookingmain= async () => {
+    const booking = await AsyncStorage.getItem('booking');
+
+    if (booking==='start') {
+      // Show an alert or prevent the navigation
+      Alert.alert('Booking already started', 'You cannot book again at the moment.');
+    } else {
+      // Proceed to the booking screen
+      router.push('/main');
+    }
   };
   // Loading state
   if (loading) {
@@ -324,9 +364,10 @@ const IndexTab = () => {
             <Text style={{ fontWeight: '600', fontSize: width * 0.03, color: 'white' }}>Where you deliver</Text>
           </View>
           <Image
-            source={require('@/assets/images/boy.png')} // Correct path to your local image
-            style={styles.profileImage}
-          />
+  source={userData.avatar ? { uri: userData.avatar } : require('@/assets/images/boy.png')}
+  style={styles.profileImage}
+/>
+
         </View>
         <View style={{ height: 120, borderRadius: 100 }}>
           <FullScreenMap1 />
@@ -335,8 +376,7 @@ const IndexTab = () => {
         {/* Row containing "Ride Now" and "Book Truck" */}
         <View style={{ flexDirection: 'row', marginTop: 5 }}>
           {/* Ride Now Box (Left Box) */}
-          <TouchableOpacity style={styles.rideNowBox} onPress={() => {
-                router.push('/booking')}}>
+          <TouchableOpacity style={styles.rideNowBox} onPress={handleBooking}>
             <Image
               source={require('@/assets/images/location-icon.png')} // Correct path to your local image
               style={styles.icon}
@@ -346,8 +386,8 @@ const IndexTab = () => {
 
 
           {/* Book Truck Box (Right Box) */}
-          <TouchableOpacity style={styles.bookTruckBox}>
-          <Text style={styles.t1text}>Book Truck</Text>
+          <TouchableOpacity style={styles.bookTruckBox} onPress={handleBookingmain}>
+          <Text style={styles.t1text}>Order Truck</Text>
 
             <Image
               source={require('@/assets/images/lefttruck.png')} // Correct path to your local image (Truck Icon)
@@ -396,7 +436,7 @@ const IndexTab = () => {
         {/* Horizontal Scroll for Cards */}
          <ScrollView horizontal={true} contentContainerStyle={styles.cardContainer}>
             {vehicleData.map((vehicle, index) => (
-              <TouchableOpacity style={styles.card} key={index} onPress={() => selectTruck(vehicle._id)}>
+              <TouchableOpacity style={styles.card} key={index} onPress={() => selectTruck(vehicle._id,vehicle.title)}>
                 <Image
                   source={{ uri: `http://192.168.0.114:1234/uploads/${vehicle.image[0]}` }} // Assuming images are stored in a specific folder
                   style={styles.cardImage}

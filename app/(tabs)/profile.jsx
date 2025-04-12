@@ -1,4 +1,4 @@
-import { StyleSheet, Text, Image, View, TouchableOpacity, SafeAreaView } from 'react-native';
+import { StyleSheet, Text, Image, View, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Profile = () => {
   // State to store any error or message from API response
   const [error, setError] = useState(null);
+  // const [name, setName] = useState(null); // Initial state as null to signify loading
+  const [loading, setLoading] = useState(true); // Loading state to show a loading indicator
+
+  // Fetch name from AsyncStorage when the component is mounted
+
 
   const handleLogout = async () => {
     try {
@@ -31,9 +36,8 @@ const Profile = () => {
         if (response.ok) {
           // If logout is successful, clear the token from AsyncStorage
           await AsyncStorage.removeItem('accessToken');
-      
-                        await AsyncStorage.removeItem('login'); 
-                        await AsyncStorage.removeItem('id');
+          await AsyncStorage.removeItem('login');
+          await AsyncStorage.removeItem('id');
 
           // Navigate the user to the login screen
           router.replace('/login');
@@ -51,7 +55,6 @@ const Profile = () => {
   };
 
   return (
-    // Wrap your content with SafeAreaView to ensure content is within the safe area
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F8FF' }}>
       {/* Header Section */}
       <View style={styles.headerContainer}>
@@ -67,14 +70,13 @@ const Profile = () => {
           style={styles.profileImage}
           resizeMode="contain"
         />
-        <Text style={styles.profileName}>Hasnain Haider</Text>
+
+        {/* Display loading indicator or name */}
+     
       </View>
 
       {/* Gradient Section */}
-      <LinearGradient
-        colors={['#266352', '#19104E']} // Gradient colors
-        style={styles.gradientContainer}
-      >
+      <LinearGradient colors={['#266352', '#19104E']} style={styles.gradientContainer}>
         <View style={styles.textContainer}>
           <Text style={styles.text}>You Have 0 Rides</Text>
           <Text style={styles.text}>Thanks for riding with us! You earned 300 points from your last ride</Text>
@@ -159,19 +161,20 @@ const styles = StyleSheet.create({
   },
   gradientContainer: {
     marginHorizontal: 20,
+    marginTop:10,
     borderRadius: 30,
-    justifyContent: 'center', // Center content vertically
-    alignItems: 'center', // Center content horizontally
-    padding: 20, // Optional padding for spacing
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   textContainer: {
-    alignItems: 'center', // Align text in the center
+    alignItems: 'center',
   },
   text: {
-    color: 'white', // White text color for contrast
-    fontSize: 15, // Adjust font size as needed
-    textAlign: 'center', // Ensure text is centered
-    marginBottom: 10, // Optional margin between text
+    color: 'white',
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 10,
   },
   cardContainer: {
     backgroundColor: 'white',
@@ -200,6 +203,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E0E0E0',
     marginHorizontal: 20,
-    marginVertical: 3, // Adjust spacing between the line and the next content
+    marginVertical: 3,
   },
 });

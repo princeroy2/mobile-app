@@ -278,7 +278,7 @@ const MapComponent = () => {
             {btnarrived &&(
               <>
               <TouchableOpacity onPress={()=>{
-                router.push('/lastmap2');
+                router.replace('/lastmap2');
               }} style={{backgroundColor:'green',padding:10,marginTop:10}}>
                 <Text style={{color:"white",textAlign:'center'}}>
                   Start Move Truck To destination

@@ -1,19 +1,136 @@
-import { StyleSheet, Text, Image, View, TouchableOpacity, SafeAreaView, TextInput } from 'react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, Image, View, TouchableOpacity, SafeAreaView, TextInput, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Feather from '@expo/vector-icons/Feather';
-import Entypo from '@expo/vector-icons/Entypo';
+import * as ImagePicker from 'expo-image-picker'; // Import image picker
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Profile = () => {
-  // State to hold editable profile information
-  const [name, setName] = useState('Hasnain Haider');
-  const [email, setEmail] = useState('hasnain@example.com');
-  const [phone, setPhone] = useState('123-456-7890');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [userdata, setUserData] = useState();
+  const [error, setError] = useState();
+  const [profileImage, setProfileImage] = useState(null); // State for profile image
+  const [loading, setLoading] = useState(false); // Loading state for API calls
 
   const router = useRouter();
+  
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Retrieve token from AsyncStorage
+        const token = await AsyncStorage.getItem('accessToken');
+        if (!token) {
+          router.replace('/login');
+          return;
+        }
+
+        // Fetch user data using token
+        const response = await fetch('http://192.168.0.114:1234/auth/me', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setUserData(data.profile); // Access the correct profile data
+          setName(data.profile.name);
+          setEmail(data.profile.email);
+          setPhone(data.profile.phone);
+        } else {
+          setError('Failed to fetch user data');
+        }
+      } catch (err) {
+        console.error(err);
+        setError('Error fetching user data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  const pickImage = async () => {
+    try {
+      // Request media library permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Permission to access media library is required!');
+        return;
+      }
+  
+      // Launch image picker to select an image
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, 
+        allowsEditing: true,
+        aspect: [1, 1], // Square aspect
+        quality: 1, // Full quality
+      });
+  
+      if (!result.canceled) {
+        // Set the profile image URI after image is picked
+        setProfileImage(result.assets[0].uri);
+      } else {
+        Alert.alert('No image selected', 'You did not select any image.');
+      }
+    } catch (error) {
+      console.error('Image Picker Error:', error);
+      Alert.alert('Error', 'An error occurred while selecting the image.');
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    setLoading(true);
+    const token = await AsyncStorage.getItem('accessToken');
+    if (!token) {
+      Alert.alert('Unauthorized', 'You need to login again.');
+      router.replace('/login');
+      return;
+    }
+
+    const updatedProfile = {
+      name,
+      email,
+      phone,
+      profileImage, // Assuming this will be handled with an API for image upload
+    };
+
+    try {
+      const response = await fetch('http://192.168.0.114:1234/users', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedProfile),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        await AsyncStorage.removeItem('name');
+        await AsyncStorage.removeItem('email');
+        Alert.alert('Success', 'Profile updated successfully.');
+        await AsyncStorage.setItem('name', name);
+        await AsyncStorage.setItem('email', email);
+        
+      } else {
+        Alert.alert('Error', 'Failed to update profile.');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'An error occurred while saving changes.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F8FF' }}>
@@ -26,32 +143,29 @@ const Profile = () => {
 
       {/* Profile Image Section */}
       <View style={styles.profileImageContainer}>
-        <Image
-          source={require('@/assets/images/boy.png')} // Use require for local images
-          style={styles.profileImage}
-          resizeMode="contain"
-        />
-        <Text style={styles.profileName}>Hasnain Haider</Text>
+        {/* Touchable for changing the profile image */}
+        <TouchableOpacity onPress={pickImage}>
+          <Image
+            source={profileImage ? { uri: profileImage } : require('@/assets/images/boy.png')} // Use selected image or default image
+            style={styles.profileImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+        <Text style={styles.profileName}>{name}</Text>
       </View>
 
       {/* Gradient Section */}
-      <LinearGradient
-        colors={['#266352', '#19104E']} // Gradient colors
-        style={styles.gradientContainer}
-      >
+      <LinearGradient colors={['#266352', '#19104E']} style={styles.gradientContainer}>
         <View style={styles.textContainer}>
           <Text style={styles.text}>You Have 0 Rides</Text>
-          <Text style={styles.text}>Thanks for riding with us! You earned 300 points from your last ride</Text>
         </View>
       </LinearGradient>
 
-      {/* Menu Card Section */}
+      {/* Editable Profile Fields */}
       <View style={styles.cardContainer}>
-        {/* Profile Info */}
-       
         <Text style={styles.line}></Text>
 
-        {/* Editable Profile Fields */}
+        {/* Editable Name Field */}
         <View style={styles.menuItem}>
           <View style={styles.menuItemLeft}>
             <Feather name="edit" size={24} color="blue" />
@@ -65,6 +179,7 @@ const Profile = () => {
         </View>
         <Text style={styles.line}></Text>
 
+        {/* Editable Email Field */}
         <View style={styles.menuItem}>
           <View style={styles.menuItemLeft}>
             <Feather name="mail" size={24} color="blue" />
@@ -78,6 +193,7 @@ const Profile = () => {
         </View>
         <Text style={styles.line}></Text>
 
+        {/* Editable Phone Field */}
         <View style={styles.menuItem}>
           <View style={styles.menuItemLeft}>
             <Feather name="phone" size={24} color="blue" />
@@ -89,10 +205,22 @@ const Profile = () => {
             />
           </View>
         </View>
+
         <Text style={styles.line}></Text>
-
-
       </View>
+
+      {/* Save Changes Button */}
+      <TouchableOpacity
+        style={styles.saveButton}
+        onPress={handleSaveChanges}
+        disabled={loading}
+      >
+        {loading ? (
+          <Text style={styles.saveButtonText}>Saving...</Text>
+        ) : (
+          <Text style={styles.saveButtonText}>Save Changes</Text>
+        )}
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -118,7 +246,8 @@ const styles = StyleSheet.create({
   },
   profileImage: {
     width: 150,
-    height: 100,
+    height: 150, // Adjust for circular image
+    borderRadius: 75, // Make it circular
   },
   profileName: {
     marginVertical: 10,
@@ -127,18 +256,18 @@ const styles = StyleSheet.create({
   gradientContainer: {
     marginHorizontal: 20,
     borderRadius: 30,
-    justifyContent: 'center', // Center content vertically
-    alignItems: 'center', // Center content horizontally
-    padding: 20, // Optional padding for spacing
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
   },
   textContainer: {
-    alignItems: 'center', // Align text in the center
+    alignItems: 'center',
   },
   text: {
-    color: 'white', // White text color for contrast
-    fontSize: 15, // Adjust font size as needed
-    textAlign: 'center', // Ensure text is centered
-    marginBottom: 10, // Optional margin between text
+    color: 'white',
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 5,
   },
   cardContainer: {
     backgroundColor: 'white',
@@ -159,10 +288,6 @@ const styles = StyleSheet.create({
     gap: 15,
     alignItems: 'center',
   },
-  menuText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
   inputField: {
     height: 40,
     borderColor: '#ccc',
@@ -175,6 +300,19 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E0E0E0',
     marginHorizontal: 20,
-    marginVertical: 3, // Adjust spacing between the line and the next content
+    marginVertical: 3,
+  },
+  saveButton: {
+    backgroundColor: '#266352',
+    paddingVertical: 15,
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 25,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

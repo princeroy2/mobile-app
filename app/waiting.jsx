@@ -79,7 +79,7 @@ const WaitingScreen = () => {
       if (coords) {
         const { latitude, longitude } = coords;
         const accessToken = await AsyncStorage.getItem('accessToken');
-        const radius = 500;
+        const radius = 20;
         const response = await fetch('http://192.168.0.114:1234/vehicle/WithinRadius', {
           method: 'POST',
           headers: {
@@ -144,7 +144,13 @@ const WaitingScreen = () => {
       const activeVehicles = vehicalsdata.filter(vehicle => vehicle.status === 'active');
       if (driverdata && activeVehicles.length > 0) {
         setIsLoading(false);
-        navigation.navigate('lastmap');
+        
+        // Navigate to 'waiting' screen and reset the navigation stack
+navigation.reset({
+  index: 0,  // Reset the stack to have only one screen.
+  routes: [{ name: 'lastmap' }],  // Navigate to 'waiting' screen
+});
+
       }
     }
   }, [driverdata, vehicalsdata, navigation]);

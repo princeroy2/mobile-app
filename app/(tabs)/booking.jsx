@@ -1,46 +1,141 @@
-import React from 'react';
-import { StyleSheet, Text, View,Image, FlatList, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Image, FlatList, SafeAreaView } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';  // Importing icons from MaterialCommunityIcons
 import Entypo from '@expo/vector-icons/Entypo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+
 const RideHistoryPage = () => {
-  // Sample ride history data
-  const rideHistory = [
-    { id: '1', from: 'New York', to: 'Los Angeles', date: '2025-03-01', distance: '2800 km', duration: '5h 30m' },
-    { id: '2', from: 'San Francisco', to: 'San Diego', date: '2025-02-15', distance: '600 km', duration: '1h 30m' },
-    { id: '3', from: 'Chicago', to: 'Dallas', date: '2025-01-10', distance: '1500 km', duration: '3h 45m' },
-    { id: '4', from: 'Miami', to: 'Orlando', date: '2024-12-25', distance: '350 km', duration: '4h 10m' },
-    { id: '5', from: 'Los Angeles', to: 'Las Vegas', date: '2024-11-05', distance: '430 km', duration: '6h 0m' },
-  ];
+  // State to store ride history data and the map region for Pakistan
+  const [rideHistory, setRideHistory] = useState();
+  const [region, setRegion] = useState({
+    latitude: 30.3753,  // Approximate latitude of Pakistan
+    longitude: 69.3451,  // Approximate longitude of Pakistan
+    latitudeDelta: 5.0,  // Adjust zoom level (larger delta for more zoomed-out view)
+
+    longitudeDelta: 5.0,  // Adjust zoom level (larger delta for more zoomed-out view)
+  });
+  const [routeData, setRouteData] = useState([]); // To store the route data
+
+  // Function to format date as YYYY-MM-DD
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Function to format time as HH:MM:SS
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  // Fetch ride history data from API
+  useEffect(() => {
+    const fetchRideHistory = async () => {
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        const routeData = await AsyncStorage.getItem('routeData');  // Retrieve route data
+        const EndLocation = await AsyncStorage.getItem('EndLocation');  // Retrieve route data
+        const startLocation = await AsyncStorage.getItem('startLocation');  // Retrieve route data
+        
+        // If routeData exists, parse it
+        if (routeData) {
+          setRouteData(JSON.parse(routeData)); // Parse and store route data
+        } 
+        console.log(token)
+
+        // API request with Authorization header
+        const response = await fetch('http://192.168.0.114:1234/booking/getUserBookings', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,  // Sending the token in the headers
+          },
+        });
+        // Handle the response
+        const data = await response.json();
+        setRideHistory(data); // Store data in state
+        console.log(data.length)
+        
+      } catch (error) {
+        console.error('Error fetching ride history:', error);
+      }
+    };
+
+    fetchRideHistory();
+  }, []); // Empty dependency array means this runs once when component mounts
 
   // Render item for each ride history
   const renderRideItem = ({ item }) => (
     <View style={styles.rideItem}>
       <View style={styles.rideDetails}>
-        {/* From City with Icon */}
+   
+
         <View style={styles.cityRow}>
-        <Entypo name="circle" size={20} color="blue" />
-                  <Text style={styles.rideText}> {item.from}</Text>
+          <Text style={styles.rideText}>{item.status}</Text>
         </View>
-        
-        {/* To City with Icon */}
-        <View style={styles.cityRow}>
-          <Icon name="map-marker" size={24} color="red" />
-          <Text style={styles.rideText}>{item.to}</Text>
-        </View>
-        
       </View>
+      <MapView
+        style={styles.map}
+        region={region}
+        onRegionChangeComplete={setRegion}
+        followsUserLocation={true}
+      >
 
-     <View style={{flexDirection:"row",justifyContent:"space-between"}}>
-       <Image
-                  source={require('@/assets/images/boy.png')} // Correct path to your local image
-                  style={styles.profileImage}
-                />
-                <View>
-                  <Text>Date:23-34-53</Text>
-                  <Text>payment:200</Text>
 
-                </View>
-     </View>
+         {/* {rideHistory[0].startLocation.coordinates && (
+                  <Marker
+                    coordinate={{
+                      latitude: rideHistory[0].startLocation.coordinates[1],
+                      longitude: rideHistory[0].startLocation.coordinates[0
+                      ]
+                    }}
+                    
+                  />
+                )} */}
+
+
+{/* {rideHistory[0].endLocation.coordinates && (
+                  <Marker
+                    coordinate={{
+                      latitude: rideHistory[0].endLocation.coordinates[1],
+                      longitude: rideHistory[0].endLocation.coordinates[0]
+                    }}
+                    
+                  />
+                )} */}
+
+
+                
+        {routeData.length > 0 && (
+          <Polyline
+            coordinates={routeData.map(([lng, lat]) => ({
+              latitude: lat,
+              longitude: lng,
+            }))}
+            strokeColor="green"
+            strokeWidth={3}
+          />
+        )}
+      </MapView>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Image
+          source={item.avatar ? { uri: item.avatar } : require('@/assets/images/boy.png')}
+          style={styles.profileImage}
+        />
+        <View>
+          <Text>Date: {formatDate(item.startDate)}</Text>  {/* Date part */}
+          <Text>Time: {formatTime(item.startDate)}</Text>  {/* Time part */}
+          <Text>Payment: {item.price}</Text>
+        </View>
+      </View>
     </View>
   );
 
@@ -51,7 +146,7 @@ const RideHistoryPage = () => {
         data={rideHistory}
         renderItem={renderRideItem}
         keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false} // Remove the scroll indicator
+        showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
   );
@@ -99,5 +194,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#19104E',
     marginLeft: 8,
+  },
+  map: {
+    height: 120,  // Small map size
+    marginVertical: 2,
+    borderRadius: 8,
   },
 });
